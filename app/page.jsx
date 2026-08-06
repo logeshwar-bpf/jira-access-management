@@ -78,10 +78,13 @@ export default function Page() {
 
     if (!targetUser || !targetProject) return;
 
+    const userHasAccess = (targetUser.accessibleProjectIds || []).includes(projectId);
     let updatedPeople = [...people];
     let updatedProjects = [...projects];
 
     if (actionType === "GRANT") {
+      if (userHasAccess) return; // No-op, already granted
+
       // Add projectId to user
       updatedPeople = updatedPeople.map((u) => {
         if (u.id === userId) {
@@ -108,7 +111,7 @@ export default function Page() {
       const newLog = {
         id: `log-${Date.now()}`,
         timestamp: new Date().toISOString(),
-        actor: "Admin (Provisioning Master)",
+        actor: adminUser?.name || "Admin (Provisioning Master)",
         action: "ACCESS_GRANTED",
         targetPerson: targetUser.name,
         targetProject: targetProject.name,
@@ -118,6 +121,8 @@ export default function Page() {
       setLogs((prev) => [newLog, ...prev]);
 
     } else if (actionType === "REVOKE") {
+      if (!userHasAccess) return; // No-op, already revoked
+
       // Remove projectId from user
       updatedPeople = updatedPeople.map((u) => {
         if (u.id === userId) {
@@ -129,7 +134,7 @@ export default function Page() {
         return u;
       });
 
-      // Remove userId from project
+      // Remove userId to project
       updatedProjects = updatedProjects.map((p) => {
         if (p.id === projectId) {
           return {
@@ -144,7 +149,7 @@ export default function Page() {
       const newLog = {
         id: `log-${Date.now()}`,
         timestamp: new Date().toISOString(),
-        actor: "Admin (Provisioning Master)",
+        actor: adminUser?.name || "Admin (Provisioning Master)",
         action: "ACCESS_REVOKED",
         targetPerson: targetUser.name,
         targetProject: targetProject.name,
