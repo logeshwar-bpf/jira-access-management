@@ -353,7 +353,7 @@ export default function Dashboard({
 
       {selectedUser && (
         <UserDrawer
-          user={selectedUser}
+          user={people.find((p) => p.id === selectedUser.id) || selectedUser}
           projects={projects}
           onClose={() => setSelectedUser(null)}
           onToggleAccess={onToggleAccess}
