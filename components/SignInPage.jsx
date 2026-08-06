@@ -5,36 +5,33 @@ import { Shield, KeyRound, Mail, ArrowRight, Lock, Sparkles, AlertCircle } from 
 import GlitterSymbol from "./GlitterSymbol";
 
 export default function SignInPage({ onLoginSuccess }) {
-  const [email, setEmail] = useState("admin@jira.internal");
-  const [password, setPassword] = useState("admin123");
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
   const [error, setError] = useState("");
   const [isLoading, setIsLoading] = useState(false);
 
-  const handleSignIn = (e) => {
+  const handleSignIn = async (e) => {
     e.preventDefault();
     setError("");
     setIsLoading(true);
 
-    setTimeout(() => {
-      // Validation for Single Admin user
-      if (email.trim().toLowerCase() === "admin@jira.internal" && password === "admin123") {
-        onLoginSuccess({
-          email: "admin@jira.internal",
-          role: "System Master Admin",
-          name: "Provisioning Admin",
-          lastLogin: new Date().toISOString(),
-        });
+    try {
+      const res = await fetch("/api/auth/login", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email, password }),
+      });
+      const data = await res.json();
+      if (res.ok && data.user) {
+        onLoginSuccess(data.user);
       } else {
-        setError("Unauthorized access attempt. Only the primary Administrator can sign in.");
-        setIsLoading(false);
+        setError(data.error || "Invalid username or password");
       }
-    }, 600);
-  };
-
-  const handleAutoFill = () => {
-    setEmail("admin@jira.internal");
-    setPassword("admin123");
-    setError("");
+    } catch (err) {
+      setError("Login request failed");
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   return (
@@ -143,19 +140,6 @@ export default function SignInPage({ onLoginSuccess }) {
               )}
             </button>
           </form>
-
-          {/* Quick Auto-Fill Admin Helper */}
-          <div className="mt-6 pt-5 border-t border-[var(--border)] flex items-center justify-between">
-            <span className="text-xs text-[var(--text-3)]">Testing credentials?</span>
-            <button
-              type="button"
-              onClick={handleAutoFill}
-              className="btn btn-ghost btn-sm"
-            >
-              <Sparkles className="w-3.5 h-3.5 text-[var(--primary)]" />
-              <span>Fill Admin Credentials</span>
-            </button>
-          </div>
         </div>
 
         {/* RIGHT SIDE: Jira Provisioning Symbol Artwork */}
