@@ -55,9 +55,9 @@ export default function Dashboard({
 
   const filteredPeople = people.filter(
     (u) =>
-      u.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      u.email.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      u.role.toLowerCase().includes(searchTerm.toLowerCase())
+      (u.name || "").toLowerCase().includes(searchTerm.toLowerCase()) ||
+      (u.email || "").toLowerCase().includes(searchTerm.toLowerCase()) ||
+      (u.role || "").toLowerCase().includes(searchTerm.toLowerCase())
   );
 
   const getInitials = (name) => {
