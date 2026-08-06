@@ -28,7 +28,9 @@ export default function Dashboard({
   onToggleAccess,
   onClearLogs,
   onAddProject,
-  onAddUser
+  onAddUser,
+  onDeleteProject,
+  onDeleteUser
 }) {
   const [activeTab, setActiveTab] = useState("projects"); // 'projects' | 'people' | 'audit'
   const [selectedProject, setSelectedProject] = useState(null);

@@ -235,11 +235,61 @@ export default function Page() {
     const newLog = {
       id: `log-${Date.now()}`,
       timestamp: new Date().toISOString(),
-      actor: "Admin (Provisioning Master)",
+      actor: adminUser?.name || "Admin (Provisioning Master)",
       action: "USER_CREATED",
       targetPerson: newUser.name,
       targetProject: "User Directory",
       details: `Registered new user '${newUser.name}' (${newUser.role}) in directory`,
+      ipAddress: "192.168.1.104",
+    };
+    setLogs((prev) => [newLog, ...prev]);
+  };
+
+  const handleDeleteProject = (projectId) => {
+    const proj = projects.find((p) => p.id === projectId);
+    if (!proj) return;
+
+    setProjects((prev) => prev.filter((p) => p.id !== projectId));
+    setPeople((prev) =>
+      prev.map((u) => ({
+        ...u,
+        accessibleProjectIds: (u.accessibleProjectIds || []).filter((id) => id !== projectId),
+      }))
+    );
+
+    const newLog = {
+      id: `log-${Date.now()}`,
+      timestamp: new Date().toISOString(),
+      actor: adminUser?.name || "Admin (Provisioning Master)",
+      action: "PROJECT_DELETED",
+      targetPerson: "System",
+      targetProject: proj.name,
+      details: `Deleted project '${proj.name}' and unassigned all users`,
+      ipAddress: "192.168.1.104",
+    };
+    setLogs((prev) => [newLog, ...prev]);
+  };
+
+  const handleDeleteUser = (userId) => {
+    const user = people.find((u) => u.id === userId);
+    if (!user) return;
+
+    setPeople((prev) => prev.filter((u) => u.id !== userId));
+    setProjects((prev) =>
+      prev.map((p) => ({
+        ...p,
+        assignedUserIds: (p.assignedUserIds || []).filter((id) => id !== userId),
+      }))
+    );
+
+    const newLog = {
+      id: `log-${Date.now()}`,
+      timestamp: new Date().toISOString(),
+      actor: adminUser?.name || "Admin (Provisioning Master)",
+      action: "USER_DELETED",
+      targetPerson: user.name,
+      targetProject: "User Directory",
+      details: `Deleted user '${user.name}' and revoked all project access`,
       ipAddress: "192.168.1.104",
     };
     setLogs((prev) => [newLog, ...prev]);
@@ -271,6 +321,8 @@ export default function Page() {
       onClearLogs={handleClearLogs}
       onAddProject={handleAddProject}
       onAddUser={handleAddUser}
+      onDeleteProject={handleDeleteProject}
+      onDeleteUser={handleDeleteUser}
     />
   );
 }
