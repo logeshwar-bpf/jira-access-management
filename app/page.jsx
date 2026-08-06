@@ -207,7 +207,10 @@ export default function Page() {
     if (!name || !name.trim()) return;
 
     const email = prompt("Enter Email address:", `${name.toLowerCase().replace(/\s+/g, ".")}@jira.internal`);
+    if (!email || !email.trim()) return;
+
     const role = prompt("Enter Job Title / Role:", "Software Engineer");
+    const validRole = (role && role.trim()) ? role.trim() : "Team Member";
 
     const colorBgs = ["bg-purple-600", "bg-[#0052cc]", "bg-[#0070f3]", "bg-teal-600", "bg-rose-600", "bg-amber-600"];
     const randomBg = colorBgs[Math.floor(Math.random() * colorBgs.length)];
@@ -216,7 +219,7 @@ export default function Page() {
       id: `usr-${Date.now()}`,
       name: name.trim(),
       email: email.trim(),
-      role: role.trim() || "Team Member",
+      role: validRole,
       avatarBg: randomBg,
       accessibleProjectIds: [],
     };
