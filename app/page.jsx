@@ -169,12 +169,14 @@ export default function Page() {
     if (!name || !name.trim()) return;
 
     const key = prompt("Enter Project Key (e.g. PROJ-NEW):", `PROJ-${Math.floor(100 + Math.random() * 900)}`);
+    if (!key || !key.trim()) return;
+
     const dashboardsStr = prompt("Enter number of accessible dashboards for this project:", "4");
     const dashboards = parseInt(dashboardsStr) || 3;
 
     const newProject = {
       id: `proj-${Date.now()}`,
-      key: key.toUpperCase(),
+      key: key.trim().toUpperCase(),
       name: name.trim(),
       description: "Custom provisioned task project with analytical dashboards.",
       category: "Internal Operations",
