@@ -22,9 +22,14 @@ export default function Page() {
     const storedAdmin = localStorage.getItem("jira_admin_user");
     if (storedAdmin) {
       try {
-        setAdminUser(JSON.parse(storedAdmin));
+        const parsed = JSON.parse(storedAdmin);
+        if (parsed && parsed.email === "admin@jira.internal" && parsed.role === "System Master Admin") {
+          setAdminUser(parsed);
+        } else {
+          localStorage.removeItem("jira_admin_user");
+        }
       } catch (e) {
-        console.error("Failed to parse stored admin user", e);
+        localStorage.removeItem("jira_admin_user");
       }
     }
     setIsLoaded(true);
