@@ -1,4 +1,5 @@
 import "./globals.css";
+import LiveBackground from "../components/LiveBackground";
 
 export const metadata = {
   title: "Jira Access — Bipolar Factory",
@@ -7,15 +8,16 @@ export const metadata = {
 
 export default function RootLayout({ children }) {
   return (
-    <html lang="en">
+    <html lang="en" suppressHydrationWarning>
       <head>
         <script
           dangerouslySetInnerHTML={{
-            __html: `(function(){try{var t=localStorage.getItem('jira:theme')||localStorage.getItem('iam-theme');if(t){document.documentElement.dataset.theme=t}else if(window.matchMedia&&window.matchMedia('(prefers-color-scheme: dark)').matches){document.documentElement.dataset.theme='dark'}}catch(e){}})()`,
+            __html: `(function(){try{var t=localStorage.getItem('iam-theme')||localStorage.getItem('jira:theme');if(t){document.documentElement.dataset.theme=t}var p=localStorage.getItem('iam-bg-preset');if(p){document.documentElement.dataset.bgPreset=p}var m=localStorage.getItem('iam-bg-motion');if(m){document.documentElement.dataset.bgMotion=m}}catch(e){}})()`,
           }}
         />
       </head>
-      <body>
+      <body suppressHydrationWarning>
+        <LiveBackground />
         {children}
       </body>
     </html>
