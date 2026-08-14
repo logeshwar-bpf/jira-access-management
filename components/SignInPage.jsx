@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import { Shield, KeyRound, Mail, ArrowRight, Lock, Sparkles, AlertCircle } from "lucide-react";
 import GlitterSymbol from "./GlitterSymbol";
 
@@ -9,12 +9,18 @@ export default function SignInPage({ onLoginSuccess }) {
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
   const [isLoading, setIsLoading] = useState(false);
+  const timerRef = useRef(null);
+
+  useEffect(() => {
+    return () => {
+      if (timerRef.current) clearTimeout(timerRef.current);
+    };
+  }, []);
 
   const handleSignIn = async (e) => {
     e.preventDefault();
     setError("");
     setIsLoading(true);
-
     try {
       const res = await fetch("/api/auth/login", {
         method: "POST",
@@ -142,7 +148,7 @@ export default function SignInPage({ onLoginSuccess }) {
           </form>
         </div>
 
-        {/* RIGHT SIDE: Jira Provisioning Symbol Artwork */}
+        {/* RIGHT SIDE: Artwork */}
         <div className="w-full h-full flex items-center justify-center p-4">
           <GlitterSymbol />
         </div>

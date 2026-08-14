@@ -1,18 +1,34 @@
 "use client";
 
 import React, { useState } from "react";
-import { History, Shield, CheckCircle2, XCircle, Clock, Filter, Search, Trash2, Sparkles } from "lucide-react";
+import { 
+  History, 
+  Shield, 
+  CheckCircle2, 
+  XCircle, 
+  Clock, 
+  Search, 
+  Trash2, 
+  Sparkles, 
+  Download,
+  AlertCircle 
+} from "lucide-react";
+import Modal from "./Modal";
+import { ACTION_META, ACTION_TYPES } from "../lib/audit";
+import { formatTimestamp, matchesQuery } from "../lib/format";
 
 export default function AuditLogView({ logs, onClearLogs }) {
   const [searchTerm, setSearchTerm] = useState("");
   const [filterAction, setFilterAction] = useState("ALL");
+  const [isConfirmClearOpen, setIsConfirmClearOpen] = useState(false);
 
   const filteredLogs = logs.filter((log) => {
     const matchesSearch =
-      log.targetPerson.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      log.targetProject.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      log.details.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      log.actor.toLowerCase().includes(searchTerm.toLowerCase());
+      matchesQuery(log.targetPerson, searchTerm) ||
+      matchesQuery(log.targetProject, searchTerm) ||
+      matchesQuery(log.details, searchTerm) ||
+      matchesQuery(log.actor, searchTerm) ||
+      matchesQuery(log.action, searchTerm);
 
     const matchesAction = filterAction === "ALL" || log.action === filterAction;
 
@@ -20,45 +36,63 @@ export default function AuditLogView({ logs, onClearLogs }) {
   });
 
   const getActionBadge = (action) => {
+    const meta = ACTION_META[action];
+    const label = meta?.label || action;
+    const pillClass = meta?.pillClass || "info";
+
     switch (action) {
-      case "ACCESS_GRANTED":
+      case ACTION_TYPES.ACCESS_GRANTED:
         return (
-          <span className="pill approved">
+          <span className={`pill ${pillClass}`}>
             <CheckCircle2 className="w-3.5 h-3.5" />
-            Access Granted
+            {label}
           </span>
         );
-      case "ACCESS_REVOKED":
+      case ACTION_TYPES.ACCESS_REVOKED:
         return (
-          <span className="pill revoked">
+          <span className={`pill ${pillClass}`}>
             <XCircle className="w-3.5 h-3.5" />
-            Access Revoked
+            {label}
           </span>
         );
-      case "ADMIN_LOGIN":
+      case ACTION_TYPES.ADMIN_LOGIN:
         return (
-          <span className="pill primary">
+          <span className={`pill ${pillClass}`}>
             <Shield className="w-3.5 h-3.5" />
-            Single Admin Login
+            {label}
           </span>
         );
       default:
         return (
-          <span className="pill info">
+          <span className={`pill ${pillClass}`}>
             <Sparkles className="w-3.5 h-3.5" />
-            {action}
+            {label}
           </span>
         );
     }
   };
 
-  const formatTime = (isoString) => {
-    try {
-      const date = new Date(isoString);
-      return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' }) + ' • ' + date.toLocaleDateString();
-    } catch {
-      return isoString;
-    }
+  const handleExportCSV = () => {
+    if (!logs.length) return;
+    const headers = ["Timestamp", "Action Event", "Actor", "Target Person", "Target Project", "Details", "IP Address"];
+    const rows = logs.map((log) => [
+      `"${log.timestamp}"`,
+      `"${log.action}"`,
+      `"${log.actor}"`,
+      `"${log.targetPerson}"`,
+      `"${log.targetProject}"`,
+      `"${(log.details || "").replace(/"/g, '""')}"`,
+      `"${log.ipAddress || "—"}"`,
+    ]);
+
+    const csvContent = "data:text/csv;charset=utf-8," + [headers.join(","), ...rows.map((e) => e.join(","))].join("\n");
+    const encodedUri = encodeURI(csvContent);
+    const link = document.createElement("a");
+    link.setAttribute("href", encodedUri);
+    link.setAttribute("download", `jira_audit_log_${new Date().toISOString().slice(0, 10)}.csv`);
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
   };
 
   return (
@@ -76,16 +110,18 @@ export default function AuditLogView({ logs, onClearLogs }) {
 
         <div className="flex items-center gap-3 flex-wrap">
           {/* Action Filter */}
-          <div className="field !mb-0 min-w-[140px]">
+          <div className="field !mb-0 min-w-[150px]">
             <select
               value={filterAction}
               onChange={(e) => setFilterAction(e.target.value)}
               className="!py-1.5 !px-3 text-xs"
             >
-              <option value="ALL">All Actions</option>
-              <option value="ACCESS_GRANTED">Access Granted</option>
-              <option value="ACCESS_REVOKED">Access Revoked</option>
-              <option value="ADMIN_LOGIN">Admin Login</option>
+              <option value="ALL">All Event Types</option>
+              {Object.entries(ACTION_META).map(([key, meta]) => (
+                <option key={key} value={key}>
+                  {meta.label}
+                </option>
+              ))}
             </select>
           </div>
 
@@ -100,12 +136,25 @@ export default function AuditLogView({ logs, onClearLogs }) {
             />
           </div>
 
+          {/* Export CSV Button */}
+          {logs.length > 0 && (
+            <button
+              onClick={handleExportCSV}
+              className="btn btn-ghost btn-sm"
+              title="Export Audit Log CSV"
+            >
+              <Download className="w-4 h-4" />
+              <span>Export CSV</span>
+            </button>
+          )}
+
           {/* Clear Logs */}
           {logs.length > 0 && (
             <button
-              onClick={onClearLogs}
-              title="Clear log history"
+              onClick={() => setIsConfirmClearOpen(true)}
+              title="Clear audit log history"
               className="btn btn-danger btn-sm"
+              aria-label="Clear audit log history"
             >
               <Trash2 className="w-4 h-4" />
             </button>
@@ -124,7 +173,7 @@ export default function AuditLogView({ logs, onClearLogs }) {
                 <th>Target Person</th>
                 <th>Task Project</th>
                 <th>Details & Payload</th>
-                <th>IP Address</th>
+                <th>Actor</th>
               </tr>
             </thead>
             <tbody>
@@ -134,7 +183,7 @@ export default function AuditLogView({ logs, onClearLogs }) {
                     <td className="font-mono text-[var(--text-3)] whitespace-nowrap">
                       <div className="flex items-center gap-1.5">
                         <Clock className="w-3.5 h-3.5 text-[var(--primary)]" />
-                        {formatTime(log.timestamp)}
+                        {formatTimestamp(log.timestamp)}
                       </div>
                     </td>
                     <td className="whitespace-nowrap">
@@ -146,11 +195,11 @@ export default function AuditLogView({ logs, onClearLogs }) {
                     <td className="text-[var(--primary)] font-semibold whitespace-nowrap">
                       {log.targetProject}
                     </td>
-                    <td className="text-[var(--text-2)] max-w-xs truncate">
+                    <td className="text-[var(--text-2)] max-w-xs truncate" title={log.details}>
                       {log.details}
                     </td>
                     <td className="font-mono text-[var(--text-3)] text-[11px] whitespace-nowrap">
-                      {log.ipAddress || "192.168.1.104"}
+                      {log.actor}
                     </td>
                   </tr>
                 ))
@@ -165,6 +214,39 @@ export default function AuditLogView({ logs, onClearLogs }) {
           </table>
         </div>
       </div>
+
+      {/* Confirmation Modal for Clearing Logs */}
+      <Modal
+        isOpen={isConfirmClearOpen}
+        onClose={() => setIsConfirmClearOpen(false)}
+        title="Confirm Log Archival"
+        maxWidth="max-w-sm"
+      >
+        <div className="space-y-4">
+          <div className="flex items-center gap-3 p-3 rounded-xl bg-[var(--risk-soft)] border border-[var(--risk)] text-xs text-[var(--risk)]">
+            <AlertCircle className="w-5 h-5 shrink-0" />
+            <p className="leading-snug">
+              Are you sure you want to clear all <strong>{logs.length}</strong> audit log records? An archival entry will be recorded in the system audit trail.
+            </p>
+          </div>
+
+          <div className="flex items-center justify-end gap-3 pt-2">
+            <button onClick={() => setIsConfirmClearOpen(false)} className="btn btn-ghost btn-sm">
+              Cancel
+            </button>
+            <button
+              onClick={() => {
+                onClearLogs();
+                setIsConfirmClearOpen(false);
+              }}
+              className="btn btn-danger btn-sm"
+            >
+              <Trash2 className="w-4 h-4" />
+              <span>Confirm Clear</span>
+            </button>
+          </div>
+        </div>
+      </Modal>
     </div>
   );
 }

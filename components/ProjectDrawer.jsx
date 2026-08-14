@@ -1,11 +1,21 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { X, Layers, Users, LayoutDashboard, Shield, Plus, Trash2, Search, Sparkles } from "lucide-react";
+import Avatar from "./Avatar";
+import { matchesQuery } from "../lib/format";
 
 export default function ProjectDrawer({ project, people, onClose, onToggleAccess }) {
   const [searchTerm, setSearchTerm] = useState("");
   const [activeTab, setActiveTab] = useState("members"); // 'members' | 'add_member'
+
+  useEffect(() => {
+    const handleKeyDown = (e) => {
+      if (e.key === "Escape") onClose();
+    };
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [onClose]);
 
   if (!project) return null;
 
@@ -14,16 +24,22 @@ export default function ProjectDrawer({ project, people, onClose, onToggleAccess
   const unassignedUsers = people.filter((p) => !p.accessibleProjectIds?.includes(project.id));
 
   const filteredAssigned = assignedUsers.filter(
-    (u) => u.name.toLowerCase().includes(searchTerm.toLowerCase()) || u.email.toLowerCase().includes(searchTerm.toLowerCase())
+    (u) => matchesQuery(u.name, searchTerm) || matchesQuery(u.email, searchTerm) || matchesQuery(u.role, searchTerm)
   );
 
   const filteredUnassigned = unassignedUsers.filter(
-    (u) => u.name.toLowerCase().includes(searchTerm.toLowerCase()) || u.email.toLowerCase().includes(searchTerm.toLowerCase())
+    (u) => matchesQuery(u.name, searchTerm) || matchesQuery(u.email, searchTerm) || matchesQuery(u.role, searchTerm)
   );
 
   return (
     <div className="fixed inset-0 z-50 flex justify-end bg-black/60 backdrop-blur-sm animate-fadeIn">
-      <div className="w-full max-w-2xl h-full bg-[var(--bg)] border-l border-[var(--border)] p-6 flex flex-col shadow-2xl overflow-y-auto">
+      <div 
+        className="fixed inset-0" 
+        onClick={onClose} 
+        aria-hidden="true" 
+      />
+      
+      <div className="relative z-10 w-full max-w-2xl h-full bg-[var(--bg)] border-l border-[var(--border)] p-6 flex flex-col shadow-2xl overflow-y-auto">
         
         {/* Drawer Header */}
         <div className="flex items-center justify-between pb-5 border-b border-[var(--border)]">
@@ -43,6 +59,7 @@ export default function ProjectDrawer({ project, people, onClose, onToggleAccess
           <button
             onClick={onClose}
             className="btn btn-ghost btn-sm"
+            aria-label="Close project drawer"
           >
             <X className="w-4 h-4" />
           </button>
@@ -116,9 +133,7 @@ export default function ProjectDrawer({ project, people, onClose, onToggleAccess
                   className="p-3.5 rounded-xl bg-[var(--card)] border border-[var(--border)] flex items-center justify-between shadow-sm"
                 >
                   <div className="flex items-center gap-3">
-                    <div className={`w-9 h-9 rounded-full ${user.avatarBg || "bg-[#5B5BD6]"} flex items-center justify-center text-white font-bold text-xs`}>
-                      {user.name.split(" ").map(n => n[0]).join("")}
-                    </div>
+                    <Avatar name={user.name} bg={user.avatarBg} size="sm" />
                     <div>
                       <h4 className="text-xs font-bold text-[var(--text)]">{user.name}</h4>
                       <p className="text-[11px] text-[var(--text-3)]">{user.email} • <span className="text-[var(--primary)]">{user.role}</span></p>
@@ -136,7 +151,7 @@ export default function ProjectDrawer({ project, people, onClose, onToggleAccess
               ))
             ) : (
               <div className="p-8 text-center text-xs text-[var(--text-3)] bg-[var(--card)] rounded-2xl border border-dashed border-[var(--border)]">
-                No users assigned to this project yet.
+                {searchTerm ? `No assigned users match "${searchTerm}".` : "No users assigned to this project yet."}
               </div>
             )
           ) : (
@@ -147,9 +162,7 @@ export default function ProjectDrawer({ project, people, onClose, onToggleAccess
                   className="p-3.5 rounded-xl bg-[var(--card)] border border-[var(--border)] flex items-center justify-between shadow-sm"
                 >
                   <div className="flex items-center gap-3">
-                    <div className={`w-9 h-9 rounded-full ${user.avatarBg || "bg-[#5B5BD6]"} flex items-center justify-center text-white font-bold text-xs opacity-80`}>
-                      {user.name.split(" ").map(n => n[0]).join("")}
-                    </div>
+                    <Avatar name={user.name} bg={user.avatarBg} size="sm" />
                     <div>
                       <h4 className="text-xs font-bold text-[var(--text)]">{user.name}</h4>
                       <p className="text-[11px] text-[var(--text-3)]">{user.email} • {user.role}</p>
@@ -167,7 +180,7 @@ export default function ProjectDrawer({ project, people, onClose, onToggleAccess
               ))
             ) : (
               <div className="p-8 text-center text-xs text-[var(--text-3)] bg-[var(--card)] rounded-2xl border border-dashed border-[var(--border)]">
-                All users currently have access to this project.
+                {searchTerm ? `No unassigned users match "${searchTerm}".` : "All users currently have access to this project."}
               </div>
             )
           )}

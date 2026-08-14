@@ -1,299 +1,26 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
+import React from "react";
 import SignInPage from "../components/SignInPage";
 import Dashboard from "../components/Dashboard";
-import { getStoredData, saveStoredData } from "../lib/mockData";
+import { useAccessControl } from "../lib/useAccessControl";
 
 export default function Page() {
-  const [adminUser, setAdminUser] = useState(null);
-  const [projects, setProjects] = useState([]);
-  const [people, setPeople] = useState([]);
-  const [logs, setLogs] = useState([]);
-  const [isLoaded, setIsLoaded] = useState(false);
-
-  // Initialize data from LocalStorage or Default Mock Data
-  useEffect(() => {
-    const data = getStoredData();
-    setProjects(data.projects);
-    setPeople(data.people);
-    setLogs(data.logs);
-
-    const storedAdmin = localStorage.getItem("jira_admin_user");
-    if (storedAdmin) {
-      try {
-        const parsed = JSON.parse(storedAdmin);
-        if (parsed && parsed.email === "admin@jira.internal" && parsed.role === "System Master Admin") {
-          setAdminUser(parsed);
-        } else {
-          localStorage.removeItem("jira_admin_user");
-        }
-      } catch (e) {
-        localStorage.removeItem("jira_admin_user");
-      }
-    }
-    setIsLoaded(true);
-  }, []);
-
-  // Save changes to local storage whenever data changes
-  useEffect(() => {
-    if (isLoaded) {
-      saveStoredData(projects, people, logs);
-    }
-  }, [projects, people, logs, isLoaded]);
-
-  // Handle Admin Sign In
-  const handleLoginSuccess = (userPayload) => {
-    setAdminUser(userPayload);
-    if (typeof window !== "undefined") {
-      localStorage.setItem("jira_admin_user", JSON.stringify(userPayload));
-    }
-
-    // Append Login Audit Log
-    const newLog = {
-      id: `log-${Date.now()}`,
-      timestamp: new Date().toISOString(),
-      actor: "Admin (Provisioning Master)",
-      action: "ADMIN_LOGIN",
-      targetPerson: userPayload.name,
-      targetProject: "Security Vault",
-      details: "Single Admin authenticated via Glitter Blue Security Gateway",
-      ipAddress: "192.168.1.104",
-    };
-    setLogs((prev) => [newLog, ...prev]);
-  };
-
-  // Handle Logout
-  const handleLogout = () => {
-    setAdminUser(null);
-    if (typeof window !== "undefined") {
-      localStorage.removeItem("jira_admin_user");
-    }
-  };
-
-  // Handle Granting or Revoking Access
-  const handleToggleAccess = (userId, projectId, actionType) => {
-    const targetUser = people.find((p) => p.id === userId);
-    const targetProject = projects.find((p) => p.id === projectId);
-
-    if (!targetUser || !targetProject) return;
-
-    const userHasAccess = (targetUser.accessibleProjectIds || []).includes(projectId);
-    let updatedPeople = [...people];
-    let updatedProjects = [...projects];
-
-    if (actionType === "GRANT") {
-      if (userHasAccess) return; // No-op, already granted
-
-      // Add projectId to user
-      updatedPeople = updatedPeople.map((u) => {
-        if (u.id === userId) {
-          const ids = u.accessibleProjectIds || [];
-          if (!ids.includes(projectId)) {
-            return { ...u, accessibleProjectIds: [...ids, projectId] };
-          }
-        }
-        return u;
-      });
-
-      // Add userId to project
-      updatedProjects = updatedProjects.map((p) => {
-        if (p.id === projectId) {
-          const ids = p.assignedUserIds || [];
-          if (!ids.includes(userId)) {
-            return { ...p, assignedUserIds: [...ids, userId] };
-          }
-        }
-        return p;
-      });
-
-      // Add Audit Log
-      const newLog = {
-        id: `log-${Date.now()}`,
-        timestamp: new Date().toISOString(),
-        actor: adminUser?.name || "Admin (Provisioning Master)",
-        action: "ACCESS_GRANTED",
-        targetPerson: targetUser.name,
-        targetProject: targetProject.name,
-        details: `Granted access to ${targetProject.name} (${targetProject.accessibleDashboards} dashboards)`,
-        ipAddress: "192.168.1.104",
-      };
-      setLogs((prev) => [newLog, ...prev]);
-
-    } else if (actionType === "REVOKE") {
-      if (!userHasAccess) return; // No-op, already revoked
-
-      // Remove projectId from user
-      updatedPeople = updatedPeople.map((u) => {
-        if (u.id === userId) {
-          return {
-            ...u,
-            accessibleProjectIds: (u.accessibleProjectIds || []).filter((id) => id !== projectId),
-          };
-        }
-        return u;
-      });
-
-      // Remove userId to project
-      updatedProjects = updatedProjects.map((p) => {
-        if (p.id === projectId) {
-          return {
-            ...p,
-            assignedUserIds: (p.assignedUserIds || []).filter((id) => id !== userId),
-          };
-        }
-        return p;
-      });
-
-      // Add Audit Log
-      const newLog = {
-        id: `log-${Date.now()}`,
-        timestamp: new Date().toISOString(),
-        actor: adminUser?.name || "Admin (Provisioning Master)",
-        action: "ACCESS_REVOKED",
-        targetPerson: targetUser.name,
-        targetProject: targetProject.name,
-        details: `Revoked access to ${targetProject.name} & associated dashboard permissions`,
-        ipAddress: "192.168.1.104",
-      };
-      setLogs((prev) => [newLog, ...prev]);
-    }
-
-    setPeople(updatedPeople);
-    setProjects(updatedProjects);
-  };
-
-  // Clear Audit Logs
-  const handleClearLogs = () => {
-    setLogs([]);
-  };
-
-  // Dynamic Add Project
-  const handleAddProject = () => {
-    const name = prompt("Enter new Task Project Name:");
-    if (!name || !name.trim()) return;
-
-    const key = prompt("Enter Project Key (e.g. PROJ-NEW):", `PROJ-${Math.floor(100 + Math.random() * 900)}`);
-    if (!key || !key.trim()) return;
-
-    const dashboardsStr = prompt("Enter number of accessible dashboards for this project:", "4");
-    const dashboards = parseInt(dashboardsStr) || 3;
-
-    const newProject = {
-      id: `proj-${Date.now()}`,
-      key: key.trim().toUpperCase(),
-      name: name.trim(),
-      description: "Custom provisioned task project with analytical dashboards.",
-      category: "Internal Operations",
-      accessibleDashboards: dashboards,
-      assignedUserIds: [],
-      securityLevel: "Standard Internal",
-    };
-
-    setProjects((prev) => [newProject, ...prev]);
-
-    // Log event
-    const newLog = {
-      id: `log-${Date.now()}`,
-      timestamp: new Date().toISOString(),
-      actor: "Admin (Provisioning Master)",
-      action: "PROJECT_PROVISIONED",
-      targetPerson: adminUser?.name || "System Admin",
-      targetProject: newProject.name,
-      details: `Provisioned new Task Project '${newProject.name}' with ${dashboards} linked dashboards`,
-      ipAddress: "192.168.1.104",
-    };
-    setLogs((prev) => [newLog, ...prev]);
-  };
-
-  // Dynamic Add User
-  const handleAddUser = () => {
-    const name = prompt("Enter Person Full Name:");
-    if (!name || !name.trim()) return;
-
-    const email = prompt("Enter Email address:", `${name.toLowerCase().replace(/\s+/g, ".")}@jira.internal`);
-    if (!email || !email.trim()) return;
-
-    const role = prompt("Enter Job Title / Role:", "Software Engineer");
-    const validRole = (role && role.trim()) ? role.trim() : "Team Member";
-
-    const colorBgs = ["bg-purple-600", "bg-[#0052cc]", "bg-[#0070f3]", "bg-teal-600", "bg-rose-600", "bg-amber-600"];
-    const randomBg = colorBgs[Math.floor(Math.random() * colorBgs.length)];
-
-    const newUser = {
-      id: `usr-${Date.now()}`,
-      name: name.trim(),
-      email: email.trim(),
-      role: validRole,
-      avatarBg: randomBg,
-      accessibleProjectIds: [],
-    };
-
-    setPeople((prev) => [newUser, ...prev]);
-
-    // Log event
-    const newLog = {
-      id: `log-${Date.now()}`,
-      timestamp: new Date().toISOString(),
-      actor: adminUser?.name || "Admin (Provisioning Master)",
-      action: "USER_CREATED",
-      targetPerson: newUser.name,
-      targetProject: "User Directory",
-      details: `Registered new user '${newUser.name}' (${newUser.role}) in directory`,
-      ipAddress: "192.168.1.104",
-    };
-    setLogs((prev) => [newLog, ...prev]);
-  };
-
-  const handleDeleteProject = (projectId) => {
-    const proj = projects.find((p) => p.id === projectId);
-    if (!proj) return;
-
-    setProjects((prev) => prev.filter((p) => p.id !== projectId));
-    setPeople((prev) =>
-      prev.map((u) => ({
-        ...u,
-        accessibleProjectIds: (u.accessibleProjectIds || []).filter((id) => id !== projectId),
-      }))
-    );
-
-    const newLog = {
-      id: `log-${Date.now()}`,
-      timestamp: new Date().toISOString(),
-      actor: adminUser?.name || "Admin (Provisioning Master)",
-      action: "PROJECT_DELETED",
-      targetPerson: "System",
-      targetProject: proj.name,
-      details: `Deleted project '${proj.name}' and unassigned all users`,
-      ipAddress: "192.168.1.104",
-    };
-    setLogs((prev) => [newLog, ...prev]);
-  };
-
-  const handleDeleteUser = (userId) => {
-    const user = people.find((u) => u.id === userId);
-    if (!user) return;
-
-    setPeople((prev) => prev.filter((u) => u.id !== userId));
-    setProjects((prev) =>
-      prev.map((p) => ({
-        ...p,
-        assignedUserIds: (p.assignedUserIds || []).filter((id) => id !== userId),
-      }))
-    );
-
-    const newLog = {
-      id: `log-${Date.now()}`,
-      timestamp: new Date().toISOString(),
-      actor: adminUser?.name || "Admin (Provisioning Master)",
-      action: "USER_DELETED",
-      targetPerson: user.name,
-      targetProject: "User Directory",
-      details: `Deleted user '${user.name}' and revoked all project access`,
-      ipAddress: "192.168.1.104",
-    };
-    setLogs((prev) => [newLog, ...prev]);
-  };
+  const {
+    adminUser,
+    projects,
+    people,
+    logs,
+    isLoaded,
+    handleLoginSuccess,
+    handleLogout,
+    handleToggleAccess,
+    handleCreateProject,
+    handleCreateUser,
+    handleDeleteProject,
+    handleDeleteUser,
+    handleClearLogs,
+  } = useAccessControl();
 
   if (!isLoaded) {
     return (
@@ -319,10 +46,11 @@ export default function Page() {
       onLogout={handleLogout}
       onToggleAccess={handleToggleAccess}
       onClearLogs={handleClearLogs}
-      onAddProject={handleAddProject}
-      onAddUser={handleAddUser}
+      onCreateProject={handleCreateProject}
+      onCreateUser={handleCreateUser}
       onDeleteProject={handleDeleteProject}
       onDeleteUser={handleDeleteUser}
     />
   );
 }
+
