@@ -285,15 +285,15 @@ export default function Dashboard({
           {/* TAB CONTENT 1: PROJECTS */}
           {activeTab === "projects" && (
             <div>
-              <div className="flex items-center justify-between mb-4">
+              <div className="tab-header">
                 <div className="section-title !mb-0">Projects Directory</div>
-                <span className="text-xs text-[var(--text-3)] font-mono">
+                <span className="count-badge">
                   Showing {filteredProjects.length} of {projects.length}
                 </span>
               </div>
 
               {filteredProjects.length > 0 ? (
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
+                <div className="cards-grid">
                   {filteredProjects.map((project) => {
                     const assignedCount = people.filter((p) => p.accessibleProjectIds?.includes(project.id)).length;
 
@@ -301,49 +301,49 @@ export default function Dashboard({
                       <div
                         key={project.id}
                         onClick={() => setSelectedProjectId(project.id)}
-                        className="card cursor-pointer group flex flex-col justify-between"
+                        className="project-card"
                       >
                         <div>
-                          <div className="flex items-center justify-between mb-3">
-                            <span className="badge role font-mono">{project.key}</span>
-                            <div className="flex items-center gap-1.5">
+                          <div className="project-card-top">
+                            <div className="project-card-badges">
+                              <span className="badge role font-mono">{project.key}</span>
                               <span className="badge">{project.category}</span>
-                              <button
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  setItemToDelete({ type: "project", id: project.id, name: project.name });
-                                }}
-                                className="p-1 rounded-md text-[var(--text-3)] hover:text-[var(--risk)] hover:bg-[var(--risk-soft)] transition-colors"
-                                title="Decommission project"
-                                aria-label={`Delete project ${project.name}`}
-                              >
-                                <Trash2 className="w-3.5 h-3.5" />
-                              </button>
                             </div>
+                            <button
+                              type="button"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                setItemToDelete({ type: "project", id: project.id, name: project.name });
+                              }}
+                              className="icon-btn-danger"
+                              title="Decommission project"
+                              aria-label={`Delete project ${project.name}`}
+                            >
+                              <Trash2 className="w-4 h-4" />
+                            </button>
                           </div>
 
-                          <h3 className="text-base font-bold group-hover:text-[var(--primary)] transition-colors flex items-center justify-between">
-                            <span>{project.name}</span>
-                            <ChevronRight className="w-4 h-4 text-[var(--text-3)] group-hover:translate-x-1 transition-transform" />
-                          </h3>
-
-                          <p className="text-xs text-[var(--text-2)] mt-2 line-clamp-2 leading-relaxed">
-                            {project.description}
-                          </p>
+                          <div className="project-card-body">
+                            <h3 className="project-card-title">
+                              <span>{project.name}</span>
+                              <ChevronRight className="project-chevron" />
+                            </h3>
+                            <p className="project-card-desc">{project.description}</p>
+                          </div>
                         </div>
 
-                        <div className="mt-5 pt-3 border-t border-[var(--border)] grid grid-cols-2 gap-3 text-xs">
-                          <div>
-                            <span className="text-[var(--text-3)] text-[11px] block">Assigned People</span>
-                            <span className="font-bold text-[var(--text)] flex items-center gap-1 mt-0.5">
-                              <Users className="w-3.5 h-3.5 text-[var(--primary)]" />
+                        <div className="project-card-metrics">
+                          <div className="metric-capsule">
+                            <span className="metric-capsule-lbl">Assigned Team</span>
+                            <span className="metric-capsule-val">
+                              <Users className="metric-icon primary" />
                               {assignedCount} People
                             </span>
                           </div>
-                          <div>
-                            <span className="text-[var(--text-3)] text-[11px] block">Dashboards</span>
-                            <span className="font-bold text-[var(--text)] flex items-center gap-1 mt-0.5">
-                              <LayoutDashboard className="w-3.5 h-3.5 text-[var(--info)]" />
+                          <div className="metric-capsule">
+                            <span className="metric-capsule-lbl">Dashboards</span>
+                            <span className="metric-capsule-val">
+                              <LayoutDashboard className="metric-icon info" />
                               {project.accessibleDashboards} Views
                             </span>
                           </div>
@@ -353,10 +353,10 @@ export default function Dashboard({
                   })}
                 </div>
               ) : (
-                <div className="p-12 text-center text-xs text-[var(--text-3)] card border-dashed flex flex-col items-center gap-2">
-                  <Search className="w-6 h-6 text-[var(--text-3)]" />
-                  <p className="font-bold text-[var(--text)]">No projects match &quot;{searchTerm}&quot;</p>
-                  <p>Try refining your search terms or provision a new task project.</p>
+                <div className="empty-filter-state">
+                  <Search className="empty-filter-icon" />
+                  <p className="empty-filter-title">No projects match &quot;{searchTerm}&quot;</p>
+                  <p className="empty-filter-sub">Try refining your search terms or provision a new task project.</p>
                   <button onClick={() => setSearchTerm("")} className="btn btn-ghost btn-sm mt-2">
                     Clear Filter
                   </button>
@@ -368,15 +368,15 @@ export default function Dashboard({
           {/* TAB CONTENT 2: PEOPLE */}
           {activeTab === "people" && (
             <div>
-              <div className="flex items-center justify-between mb-4">
+              <div className="tab-header">
                 <div className="section-title !mb-0">Access Matrix & Directory</div>
-                <span className="text-xs text-[var(--text-3)] font-mono">
+                <span className="count-badge">
                   Showing {filteredPeople.length} of {people.length}
                 </span>
               </div>
 
               {filteredPeople.length > 0 ? (
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
+                <div className="cards-grid">
                   {filteredPeople.map((user) => {
                     const userProjects = user.accessibleProjectIds || [];
                     const userDashboardCount = projects
@@ -387,49 +387,50 @@ export default function Dashboard({
                       <div
                         key={user.id}
                         onClick={() => setSelectedUserId(user.id)}
-                        className="card cursor-pointer group flex flex-col justify-between"
+                        className="people-card"
                       >
-                        <div className="flex items-start gap-3.5">
-                          <Avatar name={user.name} bg={user.avatarBg} size="md" />
+                        <div className="people-card-top">
+                          <Avatar name={user.name} bg={user.avatarBg} size="lg" />
 
-                          <div className="flex-1 min-w-0">
-                            <div className="flex items-center justify-between">
-                              <h3 className="text-base font-bold truncate group-hover:text-[var(--primary)] transition-colors">
-                                {user.name}
-                              </h3>
-                              <div className="flex items-center gap-1">
+                          <div className="people-card-info">
+                            <div className="people-card-header-row">
+                              <h3 className="people-card-name">{user.name}</h3>
+                              <div className="people-card-actions">
                                 <button
+                                  type="button"
                                   onClick={(e) => {
                                     e.stopPropagation();
                                     setItemToDelete({ type: "user", id: user.id, name: user.name });
                                   }}
-                                  className="p-1 rounded-md text-[var(--text-3)] hover:text-[var(--risk)] hover:bg-[var(--risk-soft)] transition-colors"
+                                  className="icon-btn-danger"
                                   title="Remove team member"
                                   aria-label={`Delete user ${user.name}`}
                                 >
-                                  <Trash2 className="w-3.5 h-3.5" />
+                                  <Trash2 className="w-4 h-4" />
                                 </button>
-                                <ChevronRight className="w-4 h-4 text-[var(--text-3)] group-hover:translate-x-1 transition-transform" />
+                                <ChevronRight className="project-chevron" />
                               </div>
                             </div>
-                            <p className="text-xs text-[var(--primary)] font-semibold mt-0.5">{user.role}</p>
-                            <p className="text-xs text-[var(--text-3)] truncate mt-0.5">{user.email}</p>
+                            <div className="people-card-role-row">
+                              <span className="badge role">{user.role}</span>
+                            </div>
+                            <div className="people-card-email">{user.email}</div>
                           </div>
                         </div>
 
-                        <div className="mt-5 pt-3 border-t border-[var(--border)] grid grid-cols-2 gap-3 text-xs">
-                          <div className="p-2 rounded-xl bg-[var(--bg-elev)] border border-[var(--border)]">
-                            <span className="text-[11px] text-[var(--text-3)] block">Projects</span>
-                            <span className="font-extrabold text-[var(--text)] flex items-center gap-1 mt-0.5">
-                              <Layers className="w-3.5 h-3.5 text-[var(--primary)]" />
+                        <div className="project-card-metrics">
+                          <div className="metric-capsule">
+                            <span className="metric-capsule-lbl">Assigned Projects</span>
+                            <span className="metric-capsule-val">
+                              <Layers className="metric-icon primary" />
                               {userProjects.length} Projects
                             </span>
                           </div>
 
-                          <div className="p-2 rounded-xl bg-[var(--bg-elev)] border border-[var(--border)]">
-                            <span className="text-[11px] text-[var(--text-3)] block">Dashboards</span>
-                            <span className="font-extrabold text-[var(--text)] flex items-center gap-1 mt-0.5">
-                              <LayoutDashboard className="w-3.5 h-3.5 text-[var(--info)]" />
+                          <div className="metric-capsule">
+                            <span className="metric-capsule-lbl">Dashboard Access</span>
+                            <span className="metric-capsule-val">
+                              <LayoutDashboard className="metric-icon info" />
                               {userDashboardCount} Views
                             </span>
                           </div>
@@ -439,10 +440,10 @@ export default function Dashboard({
                   })}
                 </div>
               ) : (
-                <div className="p-12 text-center text-xs text-[var(--text-3)] card border-dashed flex flex-col items-center gap-2">
-                  <Search className="w-6 h-6 text-[var(--text-3)]" />
-                  <p className="font-bold text-[var(--text)]">No team members match &quot;{searchTerm}&quot;</p>
-                  <p>Try adjusting your search filter or register a new team member.</p>
+                <div className="empty-filter-state">
+                  <Search className="empty-filter-icon" />
+                  <p className="empty-filter-title">No team members match &quot;{searchTerm}&quot;</p>
+                  <p className="empty-filter-sub">Try adjusting your search filter or register a new team member.</p>
                   <button onClick={() => setSearchTerm("")} className="btn btn-ghost btn-sm mt-2">
                     Clear Filter
                   </button>
