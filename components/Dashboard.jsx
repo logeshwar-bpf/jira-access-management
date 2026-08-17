@@ -10,14 +10,20 @@ import {
   Search, 
   Plus, 
   ChevronRight,
-  Menu,
   X,
   Trash2,
-  AlertCircle
+  AlertCircle,
+  ShieldAlert,
+  FolderTree,
+  ShieldCheck
 } from "lucide-react";
 import ProjectDrawer from "./ProjectDrawer";
 import UserDrawer from "./UserDrawer";
 import AuditLogView from "./AuditLogView";
+import DriftView from "./DriftView";
+import DashboardOverview from "./DashboardOverview";
+import TeamsView from "./TeamsView";
+import PoliciesView from "./PoliciesView";
 import ThemeToggle from "./ThemeToggle";
 import Avatar from "./Avatar";
 import AddProjectModal from "./AddProjectModal";
@@ -38,14 +44,13 @@ export default function Dashboard({
   onDeleteProject,
   onDeleteUser
 }) {
-  const [activeTab, setActiveTab] = useState("projects"); // 'projects' | 'people' | 'audit'
+  const [activeTab, setActiveTab] = useState("dashboard"); // 'dashboard' | 'projects' | 'people' | 'drift' | 'audit'
   
   // Stored as IDs to derive live objects on render (prevents stale drawer state)
   const [selectedProjectId, setSelectedProjectId] = useState(null);
   const [selectedUserId, setSelectedUserId] = useState(null);
   
   const [searchTerm, setSearchTerm] = useState("");
-  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
   // Modal Dialog States
   const [isAddProjectOpen, setIsAddProjectOpen] = useState(false);
@@ -60,7 +65,6 @@ export default function Dashboard({
   const handleTabChange = (tab) => {
     setActiveTab(tab);
     setSearchTerm("");
-    setMobileMenuOpen(false);
   };
 
   // Metrics
@@ -102,44 +106,130 @@ export default function Dashboard({
     setItemToDelete(null);
   };
 
+  const [sidebarWidth, setSidebarWidth] = useState(() => {
+    if (typeof window !== "undefined") {
+      try {
+        const savedWidth = localStorage.getItem("iam-sidebar-width");
+        if (savedWidth) return parseInt(savedWidth, 10);
+      } catch (e) {}
+    }
+    return 240;
+  });
+
+  const [isCollapsed, setIsCollapsed] = useState(() => {
+    if (typeof window !== "undefined") {
+      try {
+        const savedCollapsed = localStorage.getItem("iam-sidebar-collapsed");
+        const savedWidth = localStorage.getItem("iam-sidebar-width");
+        if (savedCollapsed === "true" || (savedWidth && parseInt(savedWidth, 10) <= 80)) {
+          return true;
+        }
+      } catch (e) {}
+    }
+    return false;
+  });
+
+  const [isResizing, setIsResizing] = useState(false);
+
+  React.useEffect(() => {
+    try {
+      const savedWidth = localStorage.getItem("iam-sidebar-width");
+      const savedCollapsed = localStorage.getItem("iam-sidebar-collapsed");
+      if (savedCollapsed === "true" || (savedWidth && parseInt(savedWidth, 10) <= 80)) {
+        setIsCollapsed(true);
+        setSidebarWidth(64);
+        document.documentElement.dataset.sidebarCollapsed = "true";
+      } else if (savedWidth) {
+        const w = parseInt(savedWidth, 10);
+        setSidebarWidth(w);
+        setIsCollapsed(false);
+        delete document.documentElement.dataset.sidebarCollapsed;
+      }
+    } catch (e) {}
+  }, []);
+
+  const startResizing = (mouseDownEvent) => {
+    mouseDownEvent.preventDefault();
+    setIsResizing(true);
+    const startX = mouseDownEvent.clientX;
+    const startWidth = isCollapsed ? 64 : sidebarWidth;
+
+    const doDrag = (mouseMoveEvent) => {
+      const calculatedWidth = startWidth + (mouseMoveEvent.clientX - startX);
+      const clampedWidth = Math.min(360, Math.max(64, calculatedWidth));
+      
+      if (clampedWidth <= 88) {
+        setIsCollapsed(true);
+        setSidebarWidth(64);
+        try {
+          localStorage.setItem("iam-sidebar-collapsed", "true");
+          localStorage.setItem("iam-sidebar-width", "64");
+          document.documentElement.dataset.sidebarCollapsed = "true";
+        } catch (e) {}
+      } else {
+        setIsCollapsed(false);
+        setSidebarWidth(clampedWidth);
+        try {
+          localStorage.setItem("iam-sidebar-collapsed", "false");
+          localStorage.setItem("iam-sidebar-width", String(clampedWidth));
+          delete document.documentElement.dataset.sidebarCollapsed;
+        } catch (e) {}
+      }
+    };
+
+    const stopDrag = () => {
+      setIsResizing(false);
+      window.removeEventListener("mousemove", doDrag);
+      window.removeEventListener("mouseup", stopDrag);
+    };
+
+    window.addEventListener("mousemove", doDrag);
+    window.addEventListener("mouseup", stopDrag);
+  };
+
+  const resetSidebarWidth = () => {
+    setSidebarWidth(240);
+    setIsCollapsed(false);
+    try {
+      localStorage.setItem("iam-sidebar-width", "240");
+      localStorage.setItem("iam-sidebar-collapsed", "false");
+      delete document.documentElement.dataset.sidebarCollapsed;
+    } catch (e) {}
+  };
+
   return (
     <div className="app">
-      {/* Mobile Backdrop Overlay */}
-      {mobileMenuOpen && (
-        <div 
-          className="sidebar-overlay mobile-open" 
-          onClick={() => setMobileMenuOpen(false)}
-          aria-hidden="true"
-        />
-      )}
-
       {/* SIDEBAR */}
-      <aside className={`sidebar ${mobileMenuOpen ? "mobile-open" : ""}`}>
-        <div className="flex items-center justify-between">
-          <div className="brand">
-            <div className="brand-logo">◆</div>
-            <div>
-              <div className="brand-name">Jira Access</div>
-              <div className="brand-sub">Bipolar Factory</div>
-            </div>
+      <aside 
+        className={`sidebar ${isCollapsed ? "collapsed" : ""} ${isResizing ? "resizing" : ""}`}
+        style={{ width: isCollapsed ? 64 : sidebarWidth }}
+        suppressHydrationWarning
+      >
+        <div className="brand">
+          <div className="brand-logo" title="Jira Access">◆</div>
+          <div className="brand-text">
+            <div className="brand-name">Jira Access</div>
+            <div className="brand-sub">Bipolar Factory</div>
           </div>
-          {mobileMenuOpen && (
-            <button
-              onClick={() => setMobileMenuOpen(false)}
-              className="btn btn-ghost btn-sm md:hidden p-1"
-              aria-label="Close sidebar menu"
-            >
-              <X className="w-4 h-4" />
-            </button>
-          )}
         </div>
 
         {/* Navigation items */}
         <nav className="nav">
           <button
             type="button"
+            onClick={() => handleTabChange("dashboard")}
+            className={`nav-item ${activeTab === "dashboard" ? "active" : ""}`}
+            title="Dashboard Overview"
+          >
+            <LayoutDashboard className="w-4 h-4" />
+            <span>Dashboard</span>
+          </button>
+
+          <button
+            type="button"
             onClick={() => handleTabChange("projects")}
             className={`nav-item ${activeTab === "projects" ? "active" : ""}`}
+            title="Task Projects"
           >
             <Layers className="w-4 h-4" />
             <span>Task Projects</span>
@@ -150,6 +240,7 @@ export default function Dashboard({
             type="button"
             onClick={() => handleTabChange("people")}
             className={`nav-item ${activeTab === "people" ? "active" : ""}`}
+            title="People Matrix"
           >
             <Users className="w-4 h-4" />
             <span>People Matrix</span>
@@ -158,8 +249,41 @@ export default function Dashboard({
 
           <button
             type="button"
+            onClick={() => handleTabChange("teams")}
+            className={`nav-item ${activeTab === "teams" ? "active" : ""}`}
+            title="Teams & Squads"
+          >
+            <FolderTree className="w-4 h-4" />
+            <span>Teams &amp; Squads</span>
+            <span className="nav-count primary">4</span>
+          </button>
+
+          <button
+            type="button"
+            onClick={() => handleTabChange("policies")}
+            className={`nav-item ${activeTab === "policies" ? "active" : ""}`}
+            title="Security Policies"
+          >
+            <ShieldCheck className="w-4 h-4" />
+            <span>Security Policies</span>
+          </button>
+
+          <button
+            type="button"
+            onClick={() => handleTabChange("drift")}
+            className={`nav-item ${activeTab === "drift" ? "active" : ""}`}
+            title="Drift Detection"
+          >
+            <ShieldAlert className="w-4 h-4" />
+            <span>Drift Detection</span>
+            <span className="nav-count warn">3</span>
+          </button>
+
+          <button
+            type="button"
             onClick={() => handleTabChange("audit")}
             className={`nav-item ${activeTab === "audit" ? "active" : ""}`}
+            title="Audit Log"
           >
             <History className="w-4 h-4" />
             <span>Audit Log</span>
@@ -170,7 +294,7 @@ export default function Dashboard({
         <div className="sidebar-foot">
           <ThemeToggle />
 
-          <div className="user-card">
+          <div className="user-card" title={adminUser?.name || "Provisioning Admin"}>
             <Avatar name={adminUser?.name || "Provisioning Admin"} bg="var(--primary)" size="sm" />
             <div className="user-meta">
               <div className="user-email">{adminUser?.name || "Provisioning Admin"}</div>
@@ -178,29 +302,53 @@ export default function Dashboard({
             </div>
           </div>
         </div>
+
+        {/* Drag Resizer Edge */}
+        <div
+          className="sidebar-resizer"
+          onMouseDown={startResizing}
+          onDoubleClick={resetSidebarWidth}
+          title="Drag to resize / minimize sidebar (Double click to reset)"
+        >
+          <div className="resizer-handle" />
+        </div>
       </aside>
 
       {/* MAIN CONTAINER */}
       <main className="main">
-        {/* TOPBAR HEADER */}
-        <header className="topbar">
-          <div className="flex items-center gap-3">
-            <button
-              onClick={() => setMobileMenuOpen(true)}
-              className="btn btn-ghost btn-sm md:hidden p-1.5"
-              aria-label="Open sidebar menu"
-            >
-              <Menu className="w-5 h-5" />
-            </button>
-
-            <div>
-              <h1 className="topbar-title">JIRA PROVISIONING</h1>
-              <p className="topbar-sub">Unified Access & Project Provisioning Console</p>
-            </div>
+        {/* IN-PAGE HEADER */}
+        <div className="page-header">
+          <div className="page-header-text">
+            <h1 className="page-title">
+              {activeTab === "dashboard"
+                ? "Jira Access Command Center"
+                : activeTab === "projects"
+                ? "Task Projects Directory"
+                : activeTab === "people"
+                ? "Team Member Access Matrix"
+                : activeTab === "teams"
+                ? "Engineering Squads & Teams"
+                : activeTab === "policies"
+                ? "Security & Access Policies"
+                : activeTab === "drift"
+                ? "Access Drift Detection & Remediation"
+                : "System Audit Logs"}
+            </h1>
+            <p className="page-subtitle">
+              {activeTab === "dashboard"
+                ? "Real-time visibility, security drift analysis & project provisioning"
+                : activeTab === "teams"
+                ? "Agile squad configurations, project board mappings, and sprint velocity"
+                : activeTab === "policies"
+                ? "Centralized permission controls, issue deletion lockdowns & workflow rules"
+                : activeTab === "drift"
+                ? "Automated engine identifying Jira role disparities & unmanaged board permissions"
+                : "Unified Access & Project Provisioning Console"}
+            </p>
           </div>
 
-          <div className="topbar-actions">
-            {activeTab !== "audit" && (
+          <div className="page-actions">
+            {(activeTab === "projects" || activeTab === "people") && (
               <div className="search">
                 <Search className="w-4 h-4" />
                 <input
@@ -212,7 +360,7 @@ export default function Dashboard({
               </div>
             )}
 
-            {activeTab === "projects" && (
+            {(activeTab === "projects" || activeTab === "dashboard") && (
               <button onClick={() => setIsAddProjectOpen(true)} className="btn btn-primary btn-sm">
                 <Plus className="w-4 h-4" />
                 <span>New Project</span>
@@ -231,69 +379,34 @@ export default function Dashboard({
               <span>Sign Out</span>
             </button>
           </div>
-        </header>
+        </div>
 
         {/* CONTENT BODY */}
         <div className="content">
-          {/* STAT METRICS CARDS */}
-          <div className="stat-grid">
-            <div className="stat-card">
-              <div className="stat-top">
-                <span>Task Projects</span>
-                <div className="stat-chip primary">
-                  <Layers className="w-4 h-4" />
-                </div>
-              </div>
-              <div className="stat-num">{totalProjects}</div>
-              <div className="stat-foot">Allocated across {totalPeople} users</div>
-            </div>
-
-            <div className="stat-card">
-              <div className="stat-top">
-                <span>Total People</span>
-                <div className="stat-chip ok">
-                  <Users className="w-4 h-4" />
-                </div>
-              </div>
-              <div className="stat-num">{totalPeople}</div>
-              <div className="stat-foot ok">100% Admin Managed</div>
-            </div>
-
-            <div className="stat-card">
-              <div className="stat-top">
-                <span>Dashboard Access Points</span>
-                <div className="stat-chip primary">
-                  <LayoutDashboard className="w-4 h-4" />
-                </div>
-              </div>
-              <div className="stat-num">{totalPermissionPoints}</div>
-              <div className="stat-foot">Avg ~{Math.round(totalPermissionPoints / (totalPeople || 1))} per user</div>
-            </div>
-
-            <div className="stat-card">
-              <div className="stat-top">
-                <span>Audit Logs</span>
-                <div className="stat-chip warn">
-                  <History className="w-4 h-4" />
-                </div>
-              </div>
-              <div className="stat-num">{logs.length}</div>
-              <div className="stat-foot warn">Real-time recording</div>
-            </div>
-          </div>
+          {/* TAB CONTENT 0: DASHBOARD OVERVIEW */}
+          {activeTab === "dashboard" && (
+            <DashboardOverview
+              projects={projects}
+              people={people}
+              logs={logs}
+              onNavigateTab={(tab) => handleTabChange(tab)}
+              onOpenAddProject={() => setIsAddProjectOpen(true)}
+              onOpenAddUser={() => setIsAddUserOpen(true)}
+            />
+          )}
 
           {/* TAB CONTENT 1: PROJECTS */}
           {activeTab === "projects" && (
             <div>
-              <div className="flex items-center justify-between mb-4">
+              <div className="tab-header">
                 <div className="section-title !mb-0">Projects Directory</div>
-                <span className="text-xs text-[var(--text-3)] font-mono">
+                <span className="count-badge">
                   Showing {filteredProjects.length} of {projects.length}
                 </span>
               </div>
 
               {filteredProjects.length > 0 ? (
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
+                <div className="cards-grid">
                   {filteredProjects.map((project) => {
                     const assignedCount = people.filter((p) => p.accessibleProjectIds?.includes(project.id)).length;
 
@@ -301,49 +414,49 @@ export default function Dashboard({
                       <div
                         key={project.id}
                         onClick={() => setSelectedProjectId(project.id)}
-                        className="card cursor-pointer group flex flex-col justify-between"
+                        className="project-card"
                       >
                         <div>
-                          <div className="flex items-center justify-between mb-3">
-                            <span className="badge role font-mono">{project.key}</span>
-                            <div className="flex items-center gap-1.5">
+                          <div className="project-card-top">
+                            <div className="project-card-badges">
+                              <span className="badge role font-mono">{project.key}</span>
                               <span className="badge">{project.category}</span>
-                              <button
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  setItemToDelete({ type: "project", id: project.id, name: project.name });
-                                }}
-                                className="p-1 rounded-md text-[var(--text-3)] hover:text-[var(--risk)] hover:bg-[var(--risk-soft)] transition-colors"
-                                title="Decommission project"
-                                aria-label={`Delete project ${project.name}`}
-                              >
-                                <Trash2 className="w-3.5 h-3.5" />
-                              </button>
                             </div>
+                            <button
+                              type="button"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                setItemToDelete({ type: "project", id: project.id, name: project.name });
+                              }}
+                              className="icon-btn-danger"
+                              title="Decommission project"
+                              aria-label={`Delete project ${project.name}`}
+                            >
+                              <Trash2 className="w-4 h-4" />
+                            </button>
                           </div>
 
-                          <h3 className="text-base font-bold group-hover:text-[var(--primary)] transition-colors flex items-center justify-between">
-                            <span>{project.name}</span>
-                            <ChevronRight className="w-4 h-4 text-[var(--text-3)] group-hover:translate-x-1 transition-transform" />
-                          </h3>
-
-                          <p className="text-xs text-[var(--text-2)] mt-2 line-clamp-2 leading-relaxed">
-                            {project.description}
-                          </p>
+                          <div className="project-card-body">
+                            <h3 className="project-card-title">
+                              <span>{project.name}</span>
+                              <ChevronRight className="project-chevron" />
+                            </h3>
+                            <p className="project-card-desc">{project.description}</p>
+                          </div>
                         </div>
 
-                        <div className="mt-5 pt-3 border-t border-[var(--border)] grid grid-cols-2 gap-3 text-xs">
-                          <div>
-                            <span className="text-[var(--text-3)] text-[11px] block">Assigned People</span>
-                            <span className="font-bold text-[var(--text)] flex items-center gap-1 mt-0.5">
-                              <Users className="w-3.5 h-3.5 text-[var(--primary)]" />
+                        <div className="project-card-metrics">
+                          <div className="metric-capsule">
+                            <span className="metric-capsule-lbl">Assigned Team</span>
+                            <span className="metric-capsule-val">
+                              <Users className="metric-icon primary" />
                               {assignedCount} People
                             </span>
                           </div>
-                          <div>
-                            <span className="text-[var(--text-3)] text-[11px] block">Dashboards</span>
-                            <span className="font-bold text-[var(--text)] flex items-center gap-1 mt-0.5">
-                              <LayoutDashboard className="w-3.5 h-3.5 text-[var(--info)]" />
+                          <div className="metric-capsule">
+                            <span className="metric-capsule-lbl">Dashboards</span>
+                            <span className="metric-capsule-val">
+                              <LayoutDashboard className="metric-icon info" />
                               {project.accessibleDashboards} Views
                             </span>
                           </div>
@@ -353,10 +466,10 @@ export default function Dashboard({
                   })}
                 </div>
               ) : (
-                <div className="p-12 text-center text-xs text-[var(--text-3)] card border-dashed flex flex-col items-center gap-2">
-                  <Search className="w-6 h-6 text-[var(--text-3)]" />
-                  <p className="font-bold text-[var(--text)]">No projects match &quot;{searchTerm}&quot;</p>
-                  <p>Try refining your search terms or provision a new task project.</p>
+                <div className="empty-filter-state">
+                  <Search className="empty-filter-icon" />
+                  <p className="empty-filter-title">No projects match &quot;{searchTerm}&quot;</p>
+                  <p className="empty-filter-sub">Try refining your search terms or provision a new task project.</p>
                   <button onClick={() => setSearchTerm("")} className="btn btn-ghost btn-sm mt-2">
                     Clear Filter
                   </button>
@@ -368,15 +481,15 @@ export default function Dashboard({
           {/* TAB CONTENT 2: PEOPLE */}
           {activeTab === "people" && (
             <div>
-              <div className="flex items-center justify-between mb-4">
+              <div className="tab-header">
                 <div className="section-title !mb-0">Access Matrix & Directory</div>
-                <span className="text-xs text-[var(--text-3)] font-mono">
+                <span className="count-badge">
                   Showing {filteredPeople.length} of {people.length}
                 </span>
               </div>
 
               {filteredPeople.length > 0 ? (
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
+                <div className="cards-grid">
                   {filteredPeople.map((user) => {
                     const userProjects = user.accessibleProjectIds || [];
                     const userDashboardCount = projects
@@ -387,49 +500,50 @@ export default function Dashboard({
                       <div
                         key={user.id}
                         onClick={() => setSelectedUserId(user.id)}
-                        className="card cursor-pointer group flex flex-col justify-between"
+                        className="people-card"
                       >
-                        <div className="flex items-start gap-3.5">
-                          <Avatar name={user.name} bg={user.avatarBg} size="md" />
+                        <div className="people-card-top">
+                          <Avatar name={user.name} bg={user.avatarBg} size="lg" />
 
-                          <div className="flex-1 min-w-0">
-                            <div className="flex items-center justify-between">
-                              <h3 className="text-base font-bold truncate group-hover:text-[var(--primary)] transition-colors">
-                                {user.name}
-                              </h3>
-                              <div className="flex items-center gap-1">
+                          <div className="people-card-info">
+                            <div className="people-card-header-row">
+                              <h3 className="people-card-name">{user.name}</h3>
+                              <div className="people-card-actions">
                                 <button
+                                  type="button"
                                   onClick={(e) => {
                                     e.stopPropagation();
                                     setItemToDelete({ type: "user", id: user.id, name: user.name });
                                   }}
-                                  className="p-1 rounded-md text-[var(--text-3)] hover:text-[var(--risk)] hover:bg-[var(--risk-soft)] transition-colors"
+                                  className="icon-btn-danger"
                                   title="Remove team member"
                                   aria-label={`Delete user ${user.name}`}
                                 >
-                                  <Trash2 className="w-3.5 h-3.5" />
+                                  <Trash2 className="w-4 h-4" />
                                 </button>
-                                <ChevronRight className="w-4 h-4 text-[var(--text-3)] group-hover:translate-x-1 transition-transform" />
+                                <ChevronRight className="project-chevron" />
                               </div>
                             </div>
-                            <p className="text-xs text-[var(--primary)] font-semibold mt-0.5">{user.role}</p>
-                            <p className="text-xs text-[var(--text-3)] truncate mt-0.5">{user.email}</p>
+                            <div className="people-card-role-row">
+                              <span className="badge role">{user.role}</span>
+                            </div>
+                            <div className="people-card-email">{user.email}</div>
                           </div>
                         </div>
 
-                        <div className="mt-5 pt-3 border-t border-[var(--border)] grid grid-cols-2 gap-3 text-xs">
-                          <div className="p-2 rounded-xl bg-[var(--bg-elev)] border border-[var(--border)]">
-                            <span className="text-[11px] text-[var(--text-3)] block">Projects</span>
-                            <span className="font-extrabold text-[var(--text)] flex items-center gap-1 mt-0.5">
-                              <Layers className="w-3.5 h-3.5 text-[var(--primary)]" />
+                        <div className="project-card-metrics">
+                          <div className="metric-capsule">
+                            <span className="metric-capsule-lbl">Assigned Projects</span>
+                            <span className="metric-capsule-val">
+                              <Layers className="metric-icon primary" />
                               {userProjects.length} Projects
                             </span>
                           </div>
 
-                          <div className="p-2 rounded-xl bg-[var(--bg-elev)] border border-[var(--border)]">
-                            <span className="text-[11px] text-[var(--text-3)] block">Dashboards</span>
-                            <span className="font-extrabold text-[var(--text)] flex items-center gap-1 mt-0.5">
-                              <LayoutDashboard className="w-3.5 h-3.5 text-[var(--info)]" />
+                          <div className="metric-capsule">
+                            <span className="metric-capsule-lbl">Dashboard Access</span>
+                            <span className="metric-capsule-val">
+                              <LayoutDashboard className="metric-icon info" />
                               {userDashboardCount} Views
                             </span>
                           </div>
@@ -439,10 +553,10 @@ export default function Dashboard({
                   })}
                 </div>
               ) : (
-                <div className="p-12 text-center text-xs text-[var(--text-3)] card border-dashed flex flex-col items-center gap-2">
-                  <Search className="w-6 h-6 text-[var(--text-3)]" />
-                  <p className="font-bold text-[var(--text)]">No team members match &quot;{searchTerm}&quot;</p>
-                  <p>Try adjusting your search filter or register a new team member.</p>
+                <div className="empty-filter-state">
+                  <Search className="empty-filter-icon" />
+                  <p className="empty-filter-title">No team members match &quot;{searchTerm}&quot;</p>
+                  <p className="empty-filter-sub">Try adjusting your search filter or register a new team member.</p>
                   <button onClick={() => setSearchTerm("")} className="btn btn-ghost btn-sm mt-2">
                     Clear Filter
                   </button>
@@ -451,7 +565,28 @@ export default function Dashboard({
             </div>
           )}
 
-          {/* TAB CONTENT 3: AUDIT LOGS */}
+          {/* TAB CONTENT 3: TEAMS & SQUADS */}
+          {activeTab === "teams" && (
+            <div>
+              <TeamsView projects={projects} people={people} />
+            </div>
+          )}
+
+          {/* TAB CONTENT 4: SECURITY POLICIES */}
+          {activeTab === "policies" && (
+            <div>
+              <PoliciesView />
+            </div>
+          )}
+
+          {/* TAB CONTENT 5: DRIFT DETECTION */}
+          {activeTab === "drift" && (
+            <div>
+              <DriftView people={people} projects={projects} onToggleAccess={onToggleAccess} />
+            </div>
+          )}
+
+          {/* TAB CONTENT 6: AUDIT LOGS */}
           {activeTab === "audit" && (
             <div>
               <AuditLogView logs={logs} onClearLogs={onClearLogs} />
